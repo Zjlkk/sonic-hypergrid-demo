@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { GameChart } from '@/components/GameChart';
 import { GameControls } from '@/components/GameControls';
 import { TransactionFeed } from '@/components/TransactionFeed';
+import { GameRules } from '@/components/GameRules';
 import { useGameEngine } from '@/lib/game-engine';
 import { Activity, Zap, Clock, Coins, Trophy, TrendingUp, AlertTriangle, Users, DollarSign, Wallet as WalletIcon, MonitorPlay, Globe, Info, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4 font-sans selection:bg-green-500/30 overflow-hidden relative">
       
+      {/* Auto-Popup Rules */}
+      <GameRules />
+
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
 
@@ -66,6 +70,7 @@ export default function Home() {
                 <h1 className="text-4xl font-black tracking-tighter italic uppercase">
                     Candle<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Wars</span>
                 </h1>
+                {/* Rules Toggle (Keep manual toggle too) */}
                 <button 
                     className="text-gray-500 hover:text-white transition-colors"
                     onMouseEnter={() => setShowRules(true)}
@@ -80,7 +85,7 @@ export default function Home() {
                         <ul className="space-y-2 text-gray-300">
                             <li className="flex gap-2">
                                 <Clock className="w-3 h-3 mt-0.5 text-gray-500" />
-                                <span><strong>15s Rounds.</strong> Early birds get 3x Power. Winner takes all.</span>
+                                <span><strong>15s Rounds.</strong> Early birds get 5x Power. Winner takes all.</span>
                             </li>
                             <li className="flex gap-2">
                                 <TrendingUp className="w-3 h-3 mt-0.5 text-green-400" />
@@ -109,6 +114,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Grid Layout */}
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 z-10">
         
         {/* LEFT: Game Card */}

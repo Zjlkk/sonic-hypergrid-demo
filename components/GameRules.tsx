@@ -1,102 +1,105 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Trophy, ArrowRightLeft } from 'lucide-react';
+import { X, Trophy, Zap, TrendingUp, Wallet } from 'lucide-react';
 
-interface GameRulesProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+export const GameRules = () => {
+  const [isOpen, setIsOpen] = useState(false);
 
-export const GameRules: React.FC<GameRulesProps> = ({ isOpen, onClose }) => {
+  // Auto-open on mount (simulate checking if first visit)
+  useEffect(() => {
+    const timer = setTimeout(() => setIsOpen(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-          />
-          
-          {/* Modal */}
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-lg bg-neutral-900 rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
-          >
-            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white">
-                <X className="w-6 h-6" />
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      >
+        <motion.div 
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className="bg-neutral-900 border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative"
+        >
+            {/* Close Button */}
+            <button 
+                onClick={() => setIsOpen(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+            >
+                <X className="w-5 h-5" />
             </button>
 
-            <div className="p-8">
-                <h2 className="text-2xl font-black text-white mb-2 flex items-center gap-2">
-                    <span className="text-blue-400">Candle</span>Wars Rules
+            {/* Hero Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center">
+                <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase mb-2">
+                    Candle Wars
                 </h2>
-                <p className="text-gray-400 text-sm mb-6">
-                    A high-frequency battle powered by HyperGrid technology.
+                <p className="text-blue-100 text-sm font-medium">
+                    The fastest trading game on Sonic SVM
                 </p>
+            </div>
 
-                <div className="space-y-6">
-                    {/* Feature 1: The Bridge */}
-                    <div className="flex gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/30">
-                            <ArrowRightLeft className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-white font-bold text-base mb-1">Solana Assets, Sonic Speed</h3>
-                            <p className="text-gray-400 text-xs leading-relaxed">
-                                You sign transactions with your <strong className="text-white">Solana Wallet</strong>. 
-                                The logic executes instantly on <strong className="text-white">Sonic SVM</strong>.
-                                No bridging required.
-                            </p>
-                        </div>
+            {/* Content */}
+            <div className="p-6 space-y-6">
+                
+                {/* Rule 1 */}
+                <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
+                        <Trophy className="w-5 h-5 text-yellow-400" />
                     </div>
-
-                    {/* Feature 2: The Game */}
-                    <div className="flex gap-4">
-                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center shrink-0 border border-green-500/30">
-                            <Zap className="w-5 h-5 text-green-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-white font-bold text-base mb-1">Pump vs Dump</h3>
-                            <p className="text-gray-400 text-xs leading-relaxed">
-                                Choose a side. If the <strong className="text-green-400">Green Line</strong> ends 
-                                higher than the Yellow Oracle Line, Bulls win. Otherwise, Bears win.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Feature 3: The Prize */}
-                    <div className="flex gap-4">
-                        <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0 border border-yellow-500/30">
-                            <Trophy className="w-5 h-5 text-yellow-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-white font-bold text-base mb-1">Winner Takes All</h3>
-                            <p className="text-gray-400 text-xs leading-relaxed">
-                                70% of all gas fees go into the Jackpot. Winners split the pot based on their contribution.
-                                Losers get nothing.
-                            </p>
-                        </div>
+                    <div>
+                        <h3 className="font-bold text-white text-sm uppercase mb-1">Winner Takes All</h3>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                            60s Rounds. If your team (Bull/Bear) wins, you split the ENTIRE jackpot based on your contribution. Losers get nothing.
+                        </p>
                     </div>
                 </div>
 
+                {/* Rule 2 */}
+                <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                        <Zap className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white text-sm uppercase mb-1">Early Bird Multiplier</h3>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                            <strong>0s-3s:</strong> 5x Power & Impact. Be the first to move the market. <br/>
+                            <strong>Last 5s:</strong> 0.5x Power. Don't be late.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Rule 3 */}
+                <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                        <TrendingUp className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white text-sm uppercase mb-1">HyperGrid Mechanics</h3>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                            Sign transactions on <span className="text-white">Solana</span>. Executed instantly on <span className="text-white">Sonic SVM</span>. Experience true high-frequency trading.
+                        </p>
+                    </div>
+                </div>
+
+                {/* CTA */}
                 <button 
-                    onClick={onClose}
-                    className="mt-8 w-full py-3 bg-white text-black font-black rounded-xl hover:bg-gray-200 transition-colors"
+                    onClick={() => setIsOpen(false)}
+                    className="w-full bg-white text-black font-black py-3 rounded-xl hover:scale-105 transition-transform"
                 >
-                    GOT IT
+                    I'M READY
                 </button>
             </div>
-          </motion.div>
-        </div>
-      )}
+
+        </motion.div>
+      </motion.div>
     </AnimatePresence>
   );
 };
