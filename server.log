@@ -221,3 +221,4 @@ https://nextjs.org/telemetry
  GET /fonts/open-sans-latin-regular.woff2 404 in 180ms (compile: 74ms, render: 106ms)
  GET / 200 in 129ms (compile: 37ms, render: 92ms)
  GET / 200 in 44ms (compile: 9ms, render: 35ms)
+ ✓ Compiled in 1224ms
