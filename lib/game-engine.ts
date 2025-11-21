@@ -24,11 +24,11 @@ export type GameState = {
   activePlayers: number;
   recentTx: Transaction[]; 
   lifetimeEarnings: number;
-  currentMultiplier: number; // Show current multiplier to UI
+  currentMultiplier: number; // Show Power Multiplier to UI
 };
 
 const DEFAULT_PRICE = 150.00;
-const ROUND_DURATION = 15; // Fast 15s Rounds!
+const ROUND_DURATION = 15; 
 const OVERDRIVE_THRESHOLD = 3; 
 const PRICE_PER_CLICK = 0.01; 
 const JACKPOT_SHARE = 0.7; 
@@ -49,7 +49,7 @@ export const useGameEngine = () => {
     activePlayers: 142,
     recentTx: [],
     lifetimeEarnings: 0,
-    currentMultiplier: 1,
+    currentMultiplier: 5.0, // Start HIGH
   });
 
   const velocityRef = useRef<number>(0);
@@ -69,26 +69,30 @@ export const useGameEngine = () => {
     fetchPrice();
   }, []);
 
-  // Helper: Calculate Multiplier based on Time Left
-  const getMultiplier = (timeLeft: number) => {
+  // --- NEW: DUAL MULTIPLIER LOGIC ---
+  const getMultipliers = (timeLeft: number) => {
       const elapsed = ROUND_DURATION - timeLeft;
       
-      // 0s - 3s: Early Bird (3x)
-      if (elapsed < 3) return 3.0;
-      
-      // 3s - 10s: Linear Decay (3x -> 1x)
-      if (elapsed < 10) {
-          // Map 3..10 to 3.0..1.0
-          const ratio = (elapsed - 3) / (10 - 3); // 0..1
-          return 3.0 - (ratio * 2.0); 
+      let powerMult = 1.0;
+      let priceMult = 1.0;
+
+      // Phase 1: Genesis (0-3s) - High Reward, High Impact
+      if (elapsed < 3) {
+          powerMult = 5.0;
+          priceMult = 2.5;
+      } 
+      // Phase 2: Momentum (3-10s) - Medium Reward, Normal Impact
+      else if (elapsed < 10) {
+          powerMult = 2.0;
+          priceMult = 1.0;
+      }
+      // Phase 3: Closing (10-15s) - Low Reward, Low Impact (Anti-Snipe)
+      else {
+          powerMult = 0.5;
+          priceMult = 0.2;
       }
       
-      // Last 5s: 1.0x -> 0.5x (Anti-Snipe)
-      if (timeLeft < 5) {
-          return 0.5;
-      }
-      
-      return 1.0;
+      return { powerMult, priceMult };
   };
 
   const calculatePotentialWin = (state: GameState, side: 'bull' | 'bear' | null) => {
@@ -114,13 +118,13 @@ export const useGameEngine = () => {
     const interval = setInterval(() => {
       setGameState(prev => {
         let newTime = prev.timeLeft - 0.1; 
-        const currentMult = getMultiplier(newTime > 0 ? newTime : 0);
+        const { powerMult } = getMultipliers(newTime > 0 ? newTime : 0);
 
         if (newTime <= 0) {
           if (prev.status !== 'settled') {
              return { ...prev, timeLeft: 0, status: 'settled', currentMultiplier: 0 };
           }
-          if (newTime < -3) { // Reset faster (3s cooldown)
+          if (newTime < -3) { 
             velocityRef.current = 0; 
             return {
               ...prev,
@@ -137,7 +141,7 @@ export const useGameEngine = () => {
               totalClicks: 0,
               activePlayers: Math.floor(Math.random() * 50) + 100,
               recentTx: [],
-              currentMultiplier: 3.0, // Reset mult
+              currentMultiplier: 5.0, // Reset high
             };
           }
           return { ...prev, timeLeft: Number(newTime.toFixed(1)) };
@@ -146,7 +150,6 @@ export const useGameEngine = () => {
         let newStatus = prev.status;
         if (newTime <= OVERDRIVE_THRESHOLD && newTime > 0) newStatus = 'overdrive';
 
-        // Physics & Simulation (Same as before)
         const dist = prev.oraclePrice - prev.currentPrice;
         const gravityForce = dist * 0.05; 
         velocityRef.current *= 0.9; 
@@ -182,7 +185,7 @@ export const useGameEngine = () => {
           totalClicks: prev.totalClicks + otherUserClicks,
           activePlayers: newPlayers,
           recentTx: [...newTxs, ...prev.recentTx].slice(0, 7),
-          currentMultiplier: Number(currentMult.toFixed(1)), // Update Multiplier
+          currentMultiplier: Number(powerMult.toFixed(1)), 
         };
       });
     }, 100);
@@ -200,12 +203,14 @@ export const useGameEngine = () => {
   }, [gameState.status]);
 
   const sendAction = async (side: 'bull' | 'bear', power: number) => {
-    // Dynamic Power based on Multiplier
-    const multiplier = getMultiplier(gameState.timeLeft);
+    const { powerMult, priceMult } = getMultipliers(gameState.timeLeft);
+    
     const BASE_POWER = 100;
-    const appliedPower = BASE_POWER * multiplier;
+    const appliedPower = BASE_POWER * powerMult; // REWARD Weight
 
-    const pushForce = side === 'bull' ? 0.15 : -0.15;
+    const BASE_PUSH = 0.15;
+    const pushForce = (side === 'bull' ? BASE_PUSH : -BASE_PUSH) * priceMult; // CURVE Impact Weight
+    
     velocityRef.current += pushForce;
 
     const myTx: Transaction = {
@@ -226,7 +231,6 @@ export const useGameEngine = () => {
             ...prev,
             myContribution: newMyContribution,
             myPower: newMyPower,
-            // Add to team total power
             bullPower: side === 'bull' ? prev.bullPower + appliedPower : prev.bullPower,
             bearPower: side === 'bear' ? prev.bearPower + appliedPower : prev.bearPower,
             totalClicks: prev.totalClicks + 1,
