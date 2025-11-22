@@ -1,257 +1,144 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { GameChart } from '@/components/GameChart';
 import { GameControls } from '@/components/GameControls';
 import { TransactionFeed } from '@/components/TransactionFeed';
 import { GameRules } from '@/components/GameRules';
 import { useGameEngine } from '@/lib/game-engine';
-import { Activity, Zap, Clock, Trophy, TrendingUp, AlertTriangle, Users, DollarSign, Wallet as WalletIcon, MonitorPlay, Globe, HelpCircle, BarChart3 } from 'lucide-react';
+import { Zap, Trophy, Globe, HelpCircle, Hammer, Timer, Pickaxe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 export default function Home() {
-  const { gameState, sendAction, winningSide, userSide } = useGameEngine();
+  const { gameState, dig } = useGameEngine();
   const { connected, publicKey } = useWallet();
   const { connection } = useConnection();
-
   const [balance, setBalance] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [critFlash, setCritFlash] = useState(false); 
 
   // Fetch Balance
   useEffect(() => {
-      if (!publicKey) {
-          setBalance(null);
-          return;
-      }
+      if (!publicKey) { setBalance(null); return; }
       const getBalance = async () => {
           try {
               const bal = await connection.getBalance(publicKey);
               setBalance(bal / LAMPORTS_PER_SOL);
-          } catch (e) {
-              console.error("Failed to fetch balance", e);
-          }
+          } catch (e) {}
       };
       getBalance();
-      // Poll balance every 10s
-      const interval = setInterval(getBalance, 10000);
-      return () => clearInterval(interval);
   }, [publicKey, connection]);
 
-  const handleAction = async (side: 'bull' | 'bear') => {
-      const result = await sendAction(side, 1);
-      if (result?.isCrit) {
+  const handleDig = async () => {
+      const result = await dig();
+      if (result.lootType === 'legendary') {
           setCritFlash(true);
-          setTimeout(() => setCritFlash(false), 300);
+          setTimeout(() => setCritFlash(false), 500);
       }
   };
 
-  const isWinning = userSide === winningSide;
-  const isRisk = userSide && !isWinning;
-  const leadPercent = Math.abs((gameState.currentPrice - gameState.oraclePrice) / gameState.oraclePrice * 100).toFixed(2);
-
   const entropy = gameState.sonicEntropy;
-  const entropyColor = entropy > 80 ? "bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)]" : entropy < 20 ? "bg-orange-500" : "bg-blue-500";
-  // Clearer labels
-  const entropyLabel = entropy > 80 ? "CHAOS MODE (3x CRIT)" : entropy < 20 ? "STAGNANT (0.5x)" : "STABLE (1.0x)";
-  const entropyText = entropy > 80 ? "text-purple-400 animate-pulse" : entropy < 20 ? "text-orange-400" : "text-blue-400";
+  const entropyColor = entropy > 85 ? "bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.8)]" : entropy > 60 ? "bg-blue-500" : "bg-gray-600";
+  const entropyLabel = entropy > 85 ? "LEGENDARY ODDS" : entropy > 60 ? "RARE ODDS" : "COMMON ODDS";
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4 font-sans selection:bg-green-500/30 overflow-hidden relative">
+    <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center p-4 font-sans overflow-hidden relative selection:bg-purple-500/30">
       
       <GameRules />
+      {critFlash && <div className="absolute inset-0 bg-purple-600/30 z-[100] pointer-events-none mix-blend-overlay animate-pulse" />}
 
-      {critFlash && <div className="absolute inset-0 bg-purple-500/20 z-[100] pointer-events-none mix-blend-overlay" />}
-
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
+      {/* Ambient Background */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-blue-500/5 rounded-full blur-[150px] pointer-events-none" />
 
       {/* Header */}
-      <div className="w-full max-w-4xl flex items-start justify-between mb-6 z-10">
-        <div className="flex flex-col gap-4">
-            {/* Sonic Oracle Indicator (Redesigned) */}
-            <div className="flex items-center gap-3">
-                <div className="bg-neutral-900/80 border border-white/10 rounded-lg p-3 flex flex-col gap-2 backdrop-blur-md min-w-[280px]">
-                    <div className="flex justify-between items-center">
-                         <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 flex items-center gap-1">
-                            <Globe className="w-3 h-3" /> Sonic Network Entropy
-                        </span>
-                        <span className="text-[10px] font-mono text-gray-500">{entropy.toFixed(0)}%</span>
-                    </div>
-                    
-                    <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                        <div 
-                            className={cn("h-full transition-all duration-200 ease-linear", entropyColor)}
-                            style={{ width: `${entropy}%` }}
-                        />
-                    </div>
-                    
-                    <div className={cn("text-xs font-black font-mono text-center tracking-wider", entropyText)}>
-                        {entropyLabel}
-                    </div>
-                </div>
-            </div>
-            
-            <div className="flex items-center gap-3 relative mt-2">
-                <h1 className="text-4xl font-black tracking-tighter italic uppercase">
-                    Candle<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Wars</span>
+      <div className="w-full max-w-5xl flex items-start justify-between mb-8 z-10 mt-4">
+        <div>
+            <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl font-black tracking-tighter italic uppercase flex items-center gap-2">
+                    <Pickaxe className="w-8 h-8 text-blue-500" />
+                    Sonic<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Miner</span>
                 </h1>
-                <button 
-                    className="text-gray-500 hover:text-white transition-colors"
-                    onMouseEnter={() => setShowRules(true)}
-                    onMouseLeave={() => setShowRules(false)}
-                >
+                <button className="text-gray-600 hover:text-white transition-colors" onClick={() => setShowRules(true)}>
                     <HelpCircle className="w-5 h-5" />
                 </button>
-                
-                {showRules && (
-                    <div className="absolute left-full top-0 ml-4 w-72 bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-2xl z-50 text-xs pointer-events-none animate-in fade-in slide-in-from-left-2">
-                        <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-1">Sonic Oracle Protocol</h4>
-                        <ul className="space-y-2 text-gray-300">
-                            <li className="flex gap-2">
-                                <Globe className="w-3 h-3 mt-0.5 text-purple-400" />
-                                <span><strong>High-Freq Oracle.</strong> Randomness generated on Sonic SVM.</span>
-                            </li>
-                            <li className="flex gap-2">
-                                <Zap className="w-3 h-3 mt-0.5 text-yellow-400" />
-                                <span><strong>Entropy &gt; 80:</strong> CRITICAL HIT! 3x Points & Force.</span>
-                            </li>
-                            <li className="flex gap-2">
-                                <AlertTriangle className="w-3 h-3 mt-0.5 text-orange-400" />
-                                <span><strong>Entropy &lt; 20:</strong> Slippage. 0.5x Points.</span>
-                            </li>
-                            <li className="mt-2 pt-2 border-t border-white/10 text-[10px] text-gray-500">
-                                No SOL spent. Just sign & speed.
-                            </li>
-                        </ul>
-                    </div>
-                )}
+            </div>
+            <div className="text-xs font-mono text-gray-500">
+                HyperGrid Loot Simulator v1.0
             </div>
         </div>
         
-        <div className="flex flex-col items-end gap-3">
-            {/* Wallet Info */}
-            {connected && (
-                <div className="bg-neutral-900/60 border border-white/10 rounded-full px-4 py-1.5 flex items-center gap-3 backdrop-blur-md text-xs font-mono">
-                    <div className="flex items-center gap-2 text-gray-400">
-                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                         {publicKey?.toString().slice(0, 4)}...{publicKey?.toString().slice(-4)}
-                    </div>
-                    <div className="w-px h-3 bg-white/20" />
-                    <div className="font-bold text-white">
-                        {balance !== null ? balance.toFixed(3) : "..."} SOL
-                    </div>
-                </div>
-            )}
-
-            <div className="flex flex-col items-end">
-                <span className="text-xs text-yellow-500/80 uppercase font-bold flex items-center gap-1 mb-1">
-                    <Activity className="w-3 h-3" /> Total Volume
-                </span>
-                <div className="text-3xl font-mono font-black text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] flex items-baseline gap-1">
-                    {gameState.totalVolume.toLocaleString()} <span className="text-sm text-yellow-600 font-bold">PTS</span>
-                </div>
+        {connected && (
+            <div className="bg-neutral-900/80 border border-white/10 rounded-full px-4 py-2 flex items-center gap-3 backdrop-blur-md font-mono text-xs">
+                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                 <span className="text-gray-400">{publicKey?.toString().slice(0,4)}...{publicKey?.toString().slice(-4)}</span>
+                 <span className="text-white font-bold border-l border-white/10 pl-3">{balance?.toFixed(3)} SOL</span>
             </div>
-        </div>
+        )}
       </div>
 
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 z-10">
-        <div className={cn(
-            "w-full rounded-3xl p-1 border shadow-2xl backdrop-blur-xl relative group transition-all duration-500",
-            isRisk && connected ? "bg-red-900/20 border-red-500/50 shadow-red-900/20" : 
-            isWinning && connected ? "bg-green-900/20 border-green-500/50 shadow-green-900/20" : 
-            "bg-neutral-900/60 border-white/10"
-        )}>
+      {/* Main Content Grid */}
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 z-10 flex-1">
+        
+        {/* LEFT: MINING AREA */}
+        <div className="flex flex-col items-center justify-center relative min-h-[500px]">
             
-            {userSide && connected && (
-                <div className={cn(
-                    "absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-lg border transition-all duration-300 z-20",
-                    isWinning ? "bg-green-500 text-black border-green-400 scale-110" : "bg-red-500 text-white border-red-400 animate-bounce"
-                )}>
-                    {isWinning ? (
-                        <>🏆 You are Winning!</>
-                    ) : (
-                        <><AlertTriangle className="w-3 h-3" /> You are Losing! Push Harder!</>
-                    )}
+            {/* Luck Meter */}
+            <div className="absolute top-0 w-full max-w-md flex flex-col gap-2 items-center">
+                <div className="flex justify-between w-full text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                    <span><Globe className="w-3 h-3 inline mr-1"/> Sonic Entropy</span>
+                    <span>{entropy.toFixed(0)}%</span>
                 </div>
-            )}
-
-            <div className="relative bg-neutral-900/90 rounded-[22px] overflow-hidden">
-                <div className="grid grid-cols-3 gap-px bg-white/5 border-b border-white/5">
-                    <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center">
-                        <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider">
-                            <Clock className="w-3 h-3" /> Time
-                        </div>
-                        <div className={`text-lg font-mono font-bold ${gameState.timeLeft < 5 ? 'text-red-500 animate-pulse' : gameState.timeLeft < 10 ? 'text-yellow-400' : 'text-white'}`}>
-                            {gameState.timeLeft.toFixed(0)}s
-                        </div>
-                    </div>
-                    
-                    {/* Changed Pending Rewards to Score */}
-                    <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center relative overflow-hidden col-span-2">
-                        <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider z-10">
-                            <Trophy className="w-3 h-3" /> Your Session Score
-                        </div>
-                        <div className={cn("text-2xl font-mono font-black z-10 tracking-tight text-blue-400")}>
-                            {connected ? gameState.myScore.toFixed(0) : "---"} <span className="text-xs font-bold opacity-70">PTS</span>
-                        </div>
-                    </div>
+                <div className="w-full h-3 bg-neutral-900 rounded-full overflow-hidden border border-white/5">
+                    <div className={cn("h-full transition-all duration-200", entropyColor)} style={{ width: `${entropy}%` }} />
                 </div>
-
-                <div className="p-4 relative">
-                    <div className="absolute top-6 right-6 z-10 bg-black/50 backdrop-blur px-2 py-1 rounded border border-white/10 text-[10px] font-mono text-gray-400">
-                        SOL/USD Price
-                    </div>
-                    <GameChart gameState={gameState} />
-                </div>
-
-                <div className="p-4 pt-0 pb-6">
-                    <div className="flex justify-center mb-4">
-                        <div className={cn(
-                            "px-4 py-1.5 rounded-full text-xs font-bold font-mono flex items-center gap-2 border shadow-lg transition-all duration-300",
-                            winningSide === 'bull' 
-                                ? "bg-green-900/30 text-green-400 border-green-500/30" 
-                                : "bg-red-900/30 text-red-400 border-red-500/30"
-                        )}>
-                            {winningSide === 'bull' ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
-                            <span>
-                                {winningSide === 'bull' ? "BULLS DOMINATING" : "BEARS CRUSHING"}
-                            </span>
-                            <span className="opacity-50">|</span>
-                            <span>+{leadPercent}%</span>
-                        </div>
-                    </div>
-
-                    <GameControls 
-                        onPump={() => handleAction('bull')}
-                        onDump={() => handleAction('bear')}
-                        bullPower={gameState.bullPower}
-                        bearPower={gameState.bearPower}
-                        userSide={userSide}
-                        currentMultiplier={1} 
-                    />
-                    
-                    <div className="flex justify-between items-center mt-4 px-2">
-                         <div className="text-[10px] text-gray-500 font-mono">
-                             {/* Empty left side now that cost is gone */}
-                        </div>
-                        <div className="text-[10px] text-gray-600 font-mono opacity-50">
-                            <Globe className="w-3 h-3 inline mr-1" />
-                            Syncing Sonic SVM...
-                        </div>
-                    </div>
+                <div className={cn("text-xs font-black tracking-widest transition-colors", entropy > 85 ? "text-purple-400" : "text-gray-500")}>
+                    {entropyLabel}
                 </div>
             </div>
+
+            {/* Central Stats */}
+            <div className="absolute top-24 flex gap-12 text-center">
+                 <div>
+                     <div className="text-xs text-gray-500 font-bold uppercase mb-1">Session Score</div>
+                     <div className="text-4xl font-black font-mono text-white tabular-nums">{gameState.myScore.toLocaleString()}</div>
+                 </div>
+                 <div>
+                     <div className="text-xs text-gray-500 font-bold uppercase mb-1">Time Left</div>
+                     <div className={cn("text-4xl font-black font-mono tabular-nums", gameState.timeLeft < 5 ? "text-red-500" : "text-white")}>
+                         {gameState.timeLeft.toFixed(1)}s
+                     </div>
+                 </div>
+            </div>
+
+            <GameControls onDig={handleDig} disabled={gameState.timeLeft <= 0} />
+
+            {gameState.status === 'settled' && (
+                <div className="absolute bottom-20 bg-neutral-900/90 border border-white/10 px-6 py-3 rounded-xl text-center backdrop-blur animate-bounce">
+                    <div className="text-xs text-gray-500 uppercase font-bold">Round Over</div>
+                    <div className="text-xl font-black text-white">Resetting...</div>
+                </div>
+            )}
         </div>
 
-        <div className="hidden lg:flex flex-col h-[600px]">
-            <TransactionFeed 
-                transactions={gameState.recentTx} 
-                networkName={connected ? "Sonic Mainnet" : "Sonic Testnet"} 
-            />
+        {/* RIGHT: LOOT FEED */}
+        <div className="flex flex-col h-[600px] bg-neutral-900/30 rounded-3xl border border-white/5 overflow-hidden backdrop-blur-sm">
+            <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                    <Trophy className="w-3 h-3" /> Recent Loots
+                </span>
+                <div className="flex items-center gap-1 text-[10px] text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> Live
+                </div>
+            </div>
+            <div className="flex-1 overflow-hidden p-2">
+                <TransactionFeed transactions={gameState.recentTx} />
+            </div>
+            <div className="p-3 border-t border-white/5 bg-black/20 text-center">
+                <div className="text-[10px] text-gray-500 font-mono">
+                    Total Mined: <span className="text-white font-bold">{gameState.totalVolume.toLocaleString()}</span> PTS
+                </div>
+            </div>
         </div>
 
       </div>

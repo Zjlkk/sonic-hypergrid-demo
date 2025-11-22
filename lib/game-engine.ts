@@ -1,86 +1,45 @@
 import { useState, useEffect, useRef } from 'react';
 
+export type LootType = 'common' | 'rare' | 'legendary';
+
 export type Transaction = {
   id: string;
-  type: 'pump' | 'dump';
   user: string; 
-  amount: number;
+  amount: number; // Points earned
   timestamp: number;
   latency: number; 
-  entropyValue: number; 
-  isCrit: boolean;      
+  lootType: LootType;
 };
 
 export type GameState = {
-  currentPrice: number;
-  oraclePrice: number;
-  bullPower: number;
-  bearPower: number;
+  myScore: number;     
   timeLeft: number;
   roundId: number;
-  status: 'active' | 'overdrive' | 'settled';
-  totalVolume: number; // Changed from jackpot to Volume/Points
-  myScore: number;     // Changed from Earnings to Score
-  totalClicks: number; 
-  activePlayers: number;
+  status: 'active' | 'settled';
+  totalVolume: number; // Global Points Mined
   recentTx: Transaction[]; 
-  
-  // Sonic Oracle States
-  sonicEntropy: number;   
-  entropyTrend: 'stable' | 'volatile';
+  sonicEntropy: number; // Visualizer only
 };
 
-const DEFAULT_PRICE = 150.00;
-const ROUND_DURATION = 15; 
-const OVERDRIVE_THRESHOLD = 3; 
+const ROUND_DURATION = 30; // 30s Blitz Round
 
-// Helper to generate fake address
 const randomAddress = () => {
   const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  return chars.charAt(Math.floor(Math.random() * chars.length)) + 
-         chars.charAt(Math.floor(Math.random() * chars.length)) + '...' + 
-         chars.charAt(Math.floor(Math.random() * chars.length)) + 
-         chars.charAt(Math.floor(Math.random() * chars.length));
+  return 'User-' + chars.substring(0, 4);
 };
 
 export const useGameEngine = () => {
   const [gameState, setGameState] = useState<GameState>({
-    currentPrice: DEFAULT_PRICE,
-    oraclePrice: DEFAULT_PRICE,
-    bullPower: 5000, 
-    bearPower: 5000,
+    myScore: 0,
     timeLeft: ROUND_DURATION,
     roundId: 1,
     status: 'active',
-    totalVolume: 124050, // Points
-    myScore: 0,
-    totalClicks: 2000,
-    activePlayers: 142,
+    totalVolume: 845200,
     recentTx: [],
     sonicEntropy: 50,
-    entropyTrend: 'stable',
   });
 
-  const velocityRef = useRef<number>(0);
-  const [userSide, setUserSide] = useState<'bull' | 'bear' | null>(null);
-  
-  // Fetch Price Logic 
-  useEffect(() => {
-    const fetchPrice = async () => {
-        try {
-            const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-            const data = await res.json();
-            if (data.solana.usd) {
-                setGameState(prev => ({ ...prev, currentPrice: data.solana.usd, oraclePrice: data.solana.usd }));
-            }
-        } catch (e) {}
-    };
-    fetchPrice();
-  }, []);
-
-  const winningSide = gameState.currentPrice >= gameState.oraclePrice ? 'bull' : 'bear';
-
-  // Simulate Sonic Oracle High-Frequency Updates
+  // High-Freq Entropy Update (Visual only now)
   useEffect(() => {
       const interval = setInterval(() => {
           setGameState(prev => {
@@ -88,146 +47,95 @@ export const useGameEngine = () => {
               let newEntropy = prev.sonicEntropy + noise;
               if (newEntropy > 100) newEntropy = 100;
               if (newEntropy < 0) newEntropy = 0;
-              
-              return {
-                  ...prev,
-                  sonicEntropy: newEntropy,
-                  entropyTrend: Math.abs(newEntropy - 50) > 30 ? 'volatile' : 'stable'
-              };
+              return { ...prev, sonicEntropy: newEntropy };
           });
       }, 200); 
       return () => clearInterval(interval);
   }, []);
 
-  // Main Game Loop
+  // Timer Loop
   useEffect(() => {
     const interval = setInterval(() => {
       setGameState(prev => {
         let newTime = prev.timeLeft - 0.1; 
 
         if (newTime <= 0) {
-          if (newTime < -3) { 
-            velocityRef.current = 0; 
-            return {
-              ...prev,
-              timeLeft: ROUND_DURATION,
-              status: 'active',
-              currentPrice: prev.oraclePrice,
-              oraclePrice: prev.oraclePrice, 
-              bullPower: 5000,
-              bearPower: 5000,
-              roundId: prev.roundId + 1,
-              // Keep score, reset volume slightly
-              totalVolume: prev.totalVolume + 1000,
-              activePlayers: Math.floor(Math.random() * 50) + 100,
-              recentTx: [],
-            };
-          }
-          return { ...prev, timeLeft: Number(newTime.toFixed(1)), status: 'settled' };
+           // Auto Restart Round for endless fun
+           if (newTime < -2) {
+               return {
+                   ...prev,
+                   timeLeft: ROUND_DURATION,
+                   status: 'active',
+                   myScore: 0, // Reset score for new round
+                   roundId: prev.roundId + 1,
+                   recentTx: [],
+               };
+           }
+           return { ...prev, timeLeft: 0, status: 'settled' };
         }
 
-        let newStatus = prev.status;
-        if (newTime <= OVERDRIVE_THRESHOLD && newTime > 0) newStatus = 'overdrive';
-
-        // Physics
-        const dist = prev.oraclePrice - prev.currentPrice;
-        const gravityForce = dist * 0.05; 
-        velocityRef.current *= 0.9; 
-        let noise = 0;
-        if (Math.abs(velocityRef.current) < 0.05) noise = (Math.random() - 0.5) * 0.02;
-        velocityRef.current += gravityForce * 0.1;
-        let newPrice = prev.currentPrice + velocityRef.current + noise;
-
-        // "Bot" Traffic -> Real looking users
-        const otherUserClicks = Math.floor(Math.random() * 3); 
-        const newTxs: Transaction[] = [];
-        for(let i=0; i<otherUserClicks; i++) {
-            const botEntropy = Math.floor(Math.random() * 100);
-            const isCrit = botEntropy > 80; 
-            newTxs.push({
-                id: Math.random().toString(36).substr(2, 9),
-                type: Math.random() > 0.5 ? 'pump' : 'dump',
-                user: randomAddress(), // Realistic address
-                amount: 0.01,
+        // Fake Global Activity
+        if (Math.random() > 0.7) {
+            const botType = Math.random() > 0.95 ? 'legendary' : Math.random() > 0.8 ? 'rare' : 'common';
+            const points = botType === 'legendary' ? 500 : botType === 'rare' ? 50 : 10;
+            
+            const botTx: Transaction = {
+                id: Math.random().toString(36).substr(2, 6),
+                user: randomAddress(),
+                amount: points,
                 timestamp: Date.now(),
-                latency: Math.floor(Math.random() * 100) + 380, 
-                entropyValue: botEntropy,
-                isCrit: isCrit
-            });
+                latency: Math.floor(Math.random() * 50) + 380,
+                lootType: botType
+            };
+            
+            return {
+                ...prev,
+                timeLeft: Number(newTime.toFixed(1)),
+                totalVolume: prev.totalVolume + points,
+                recentTx: [botTx, ...prev.recentTx].slice(0, 8)
+            };
         }
 
-        const playerChange = Math.floor(Math.random() * 3) - 1; 
-        let newPlayers = prev.activePlayers + playerChange;
-        if (newPlayers < 50) newPlayers = 50;
-
-        return {
-          ...prev,
-          timeLeft: Number(newTime.toFixed(1)),
-          status: newStatus as any,
-          currentPrice: newPrice,
-          oraclePrice: prev.oraclePrice + (Math.random() - 0.5) * 0.01,
-          totalVolume: prev.totalVolume + (otherUserClicks * 100),
-          totalClicks: prev.totalClicks + otherUserClicks,
-          activePlayers: newPlayers,
-          recentTx: [...newTxs, ...prev.recentTx].slice(0, 7),
-        };
+        return { ...prev, timeLeft: Number(newTime.toFixed(1)) };
       });
     }, 100);
-
     return () => clearInterval(interval);
   }, []);
 
-  const sendAction = async (side: 'bull' | 'bear', power: number) => {
-    const currentEntropy = gameState.sonicEntropy;
+  const dig = async () => {
+    // The Core Logic: Read Sonic State
+    const entropy = gameState.sonicEntropy;
     
-    let entropyMultiplier = 1.0;
-    let isCrit = false;
+    let lootType: LootType = 'common';
+    let points = 10;
 
-    if (currentEntropy > 80) {
-        entropyMultiplier = 3.0; 
-        isCrit = true;
-    } else if (currentEntropy < 20) {
-        entropyMultiplier = 0.5; 
+    // Simple Probability Map
+    if (entropy > 85) {
+        lootType = 'legendary';
+        points = 500;
+    } else if (entropy > 60) {
+        lootType = 'rare';
+        points = 50;
     }
 
-    const BASE_POWER = 100;
-    const pointsEarned = BASE_POWER * entropyMultiplier;
-    const appliedPower = pointsEarned;
-
-    const BASE_PUSH = 0.15;
-    const pushForce = (side === 'bull' ? BASE_PUSH : -BASE_PUSH) * entropyMultiplier; 
-    
-    velocityRef.current += pushForce;
-
     const myTx: Transaction = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: side === 'bull' ? 'pump' : 'dump',
+        id: Math.random().toString(36).substr(2, 6),
         user: 'You',
-        amount: 0.01,
+        amount: points,
         timestamp: Date.now(),
         latency: 400 + Math.floor(Math.random() * 20),
-        entropyValue: Math.floor(currentEntropy),
-        isCrit: isCrit 
+        lootType: lootType
     };
 
-    setGameState(prev => {
-        const isFlip = userSide && userSide !== side;
-        // If flip, no penalty in Points Mode, just switch side force
-        
-        return {
-            ...prev,
-            myScore: prev.myScore + pointsEarned,
-            bullPower: side === 'bull' ? prev.bullPower + appliedPower : prev.bullPower,
-            bearPower: side === 'bear' ? prev.bearPower + appliedPower : prev.bearPower,
-            totalClicks: prev.totalClicks + 1,
-            totalVolume: prev.totalVolume + pointsEarned,
-            recentTx: [myTx, ...prev.recentTx].slice(0, 7), 
-        };
-    });
-    setUserSide(side);
+    setGameState(prev => ({
+        ...prev,
+        myScore: prev.myScore + points,
+        totalVolume: prev.totalVolume + points,
+        recentTx: [myTx, ...prev.recentTx].slice(0, 8), 
+    }));
     
-    return { isCrit, multiplier: entropyMultiplier, points: pointsEarned };
+    return { lootType, points };
   };
 
-  return { gameState, userSide, sendAction, winningSide };
+  return { gameState, dig };
 };
