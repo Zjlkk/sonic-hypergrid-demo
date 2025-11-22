@@ -18,7 +18,6 @@ export default function Home() {
   const [showRules, setShowRules] = useState(false);
   const [critFlash, setCritFlash] = useState(false); 
 
-  // Fetch Balance
   useEffect(() => {
       if (!publicKey) { setBalance(null); return; }
       const getBalance = async () => {
