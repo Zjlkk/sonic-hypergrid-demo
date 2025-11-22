@@ -7,6 +7,8 @@ export type Transaction = {
   amount: number;
   timestamp: number;
   latency: number; 
+  entropyValue: number; // The Sonic Random Value used
+  isCrit: boolean;      // Did it trigger a Critical Hit?
 };
 
 export type GameState = {
@@ -19,12 +21,15 @@ export type GameState = {
   status: 'active' | 'overdrive' | 'settled';
   jackpot: number; 
   myContribution: number; 
-  myPower: number; // Weighted Power
+  myPower: number; 
   totalClicks: number; 
   activePlayers: number;
   recentTx: Transaction[]; 
   lifetimeEarnings: number;
-  currentMultiplier: number; // Show Power Multiplier to UI
+  
+  // New Sonic Oracle States
+  sonicEntropy: number;   // 0-100, represents randomness from Sonic
+  entropyTrend: 'stable' | 'volatile';
 };
 
 const DEFAULT_PRICE = 150.00;
@@ -49,13 +54,14 @@ export const useGameEngine = () => {
     activePlayers: 142,
     recentTx: [],
     lifetimeEarnings: 0,
-    currentMultiplier: 5.0, // Start HIGH
+    sonicEntropy: 50,
+    entropyTrend: 'stable',
   });
 
   const velocityRef = useRef<number>(0);
   const [userSide, setUserSide] = useState<'bull' | 'bear' | null>(null);
   
-  // Fetch Price Logic ... (Keep same)
+  // Fetch Price Logic (Keep same)
   useEffect(() => {
     const fetchPrice = async () => {
         try {
@@ -69,32 +75,6 @@ export const useGameEngine = () => {
     fetchPrice();
   }, []);
 
-  // --- NEW: DUAL MULTIPLIER LOGIC ---
-  const getMultipliers = (timeLeft: number) => {
-      const elapsed = ROUND_DURATION - timeLeft;
-      
-      let powerMult = 1.0;
-      let priceMult = 1.0;
-
-      // Phase 1: Genesis (0-3s) - High Reward, High Impact
-      if (elapsed < 3) {
-          powerMult = 5.0;
-          priceMult = 2.5;
-      } 
-      // Phase 2: Momentum (3-10s) - Medium Reward, Normal Impact
-      else if (elapsed < 10) {
-          powerMult = 2.0;
-          priceMult = 1.0;
-      }
-      // Phase 3: Closing (10-15s) - Low Reward, Low Impact (Anti-Snipe)
-      else {
-          powerMult = 0.5;
-          priceMult = 0.2;
-      }
-      
-      return { powerMult, priceMult };
-  };
-
   const calculatePotentialWin = (state: GameState, side: 'bull' | 'bear' | null) => {
       if (!side) return 0;
       const winning = state.currentPrice >= state.oraclePrice ? 'bull' : 'bear';
@@ -106,23 +86,39 @@ export const useGameEngine = () => {
 
   const potentialWin = calculatePotentialWin(gameState, userSide).toFixed(4);
   const winningSide = gameState.currentPrice >= gameState.oraclePrice ? 'bull' : 'bear';
-  const randomUser = () => {
-    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    return chars.charAt(Math.floor(Math.random() * chars.length)) + 
-           chars.charAt(Math.floor(Math.random() * chars.length)) + '...' + 
-           chars.charAt(Math.floor(Math.random() * chars.length)) + 
-           chars.charAt(Math.floor(Math.random() * chars.length));
-  };
 
+  // Simulate Sonic Oracle High-Frequency Updates
+  useEffect(() => {
+      const interval = setInterval(() => {
+          setGameState(prev => {
+              // Sonic produces "Chaos" values
+              const noise = (Math.random() - 0.5) * 20; 
+              let newEntropy = prev.sonicEntropy + noise;
+              if (newEntropy > 100) newEntropy = 100;
+              if (newEntropy < 0) newEntropy = 0;
+              
+              // Occasional "Trend" shifts
+              const isVolatile = Math.abs(newEntropy - 50) > 30;
+
+              return {
+                  ...prev,
+                  sonicEntropy: newEntropy,
+                  entropyTrend: isVolatile ? 'volatile' : 'stable'
+              };
+          });
+      }, 200); // Update every 200ms (5Hz)
+      return () => clearInterval(interval);
+  }, []);
+
+  // Main Game Loop
   useEffect(() => {
     const interval = setInterval(() => {
       setGameState(prev => {
         let newTime = prev.timeLeft - 0.1; 
-        const { powerMult } = getMultipliers(newTime > 0 ? newTime : 0);
 
         if (newTime <= 0) {
           if (prev.status !== 'settled') {
-             return { ...prev, timeLeft: 0, status: 'settled', currentMultiplier: 0 };
+             return { ...prev, timeLeft: 0, status: 'settled' };
           }
           if (newTime < -3) { 
             velocityRef.current = 0; 
@@ -141,7 +137,6 @@ export const useGameEngine = () => {
               totalClicks: 0,
               activePlayers: Math.floor(Math.random() * 50) + 100,
               recentTx: [],
-              currentMultiplier: 5.0, // Reset high
             };
           }
           return { ...prev, timeLeft: Number(newTime.toFixed(1)) };
@@ -150,6 +145,7 @@ export const useGameEngine = () => {
         let newStatus = prev.status;
         if (newTime <= OVERDRIVE_THRESHOLD && newTime > 0) newStatus = 'overdrive';
 
+        // Physics
         const dist = prev.oraclePrice - prev.currentPrice;
         const gravityForce = dist * 0.05; 
         velocityRef.current *= 0.9; 
@@ -158,16 +154,21 @@ export const useGameEngine = () => {
         velocityRef.current += gravityForce * 0.1;
         let newPrice = prev.currentPrice + velocityRef.current + noise;
 
+        // Bot Traffic (Also affected by Sonic Entropy!)
         const otherUserClicks = Math.floor(Math.random() * 3); 
         const newTxs: Transaction[] = [];
         for(let i=0; i<otherUserClicks; i++) {
+            const botEntropy = Math.floor(Math.random() * 100);
+            const isCrit = botEntropy > 80; // Bots get lucky too
             newTxs.push({
                 id: Math.random().toString(36).substr(2, 9),
                 type: Math.random() > 0.5 ? 'pump' : 'dump',
-                user: randomUser(),
+                user: 'Bot',
                 amount: 0.01,
                 timestamp: Date.now(),
                 latency: Math.floor(Math.random() * 100) + 380, 
+                entropyValue: botEntropy,
+                isCrit: isCrit
             });
         }
 
@@ -185,7 +186,6 @@ export const useGameEngine = () => {
           totalClicks: prev.totalClicks + otherUserClicks,
           activePlayers: newPlayers,
           recentTx: [...newTxs, ...prev.recentTx].slice(0, 7),
-          currentMultiplier: Number(powerMult.toFixed(1)), 
         };
       });
     }, 100);
@@ -203,13 +203,28 @@ export const useGameEngine = () => {
   }, [gameState.status]);
 
   const sendAction = async (side: 'bull' | 'bear', power: number) => {
-    const { powerMult, priceMult } = getMultipliers(gameState.timeLeft);
     
+    // --- READ SONIC STATE ---
+    // In a real app, this would be: const entropy = await sonicConnection.getLatestVRF();
+    const currentEntropy = gameState.sonicEntropy;
+    
+    // Determine Luck based on Sonic Entropy
+    let entropyMultiplier = 1.0;
+    let isCrit = false;
+
+    if (currentEntropy > 80) {
+        entropyMultiplier = 3.0; // CRITICAL HIT!
+        isCrit = true;
+    } else if (currentEntropy < 20) {
+        entropyMultiplier = 0.5; // SLIPPAGE / BAD LUCK
+    }
+
+    // Calculate actual applied power
     const BASE_POWER = 100;
-    const appliedPower = BASE_POWER * powerMult; // REWARD Weight
+    const appliedPower = BASE_POWER * entropyMultiplier;
 
     const BASE_PUSH = 0.15;
-    const pushForce = (side === 'bull' ? BASE_PUSH : -BASE_PUSH) * priceMult; // CURVE Impact Weight
+    const pushForce = (side === 'bull' ? BASE_PUSH : -BASE_PUSH) * entropyMultiplier; // Crit also moves price harder
     
     velocityRef.current += pushForce;
 
@@ -219,7 +234,9 @@ export const useGameEngine = () => {
         user: 'You',
         amount: 0.01,
         timestamp: Date.now(),
-        latency: 400 + Math.floor(Math.random() * 20), 
+        latency: 400 + Math.floor(Math.random() * 20),
+        entropyValue: Math.floor(currentEntropy),
+        isCrit: isCrit 
     };
 
     setGameState(prev => {
@@ -239,6 +256,9 @@ export const useGameEngine = () => {
         };
     });
     setUserSide(side);
+    
+    // Return info for UI effects
+    return { isCrit, multiplier: entropyMultiplier };
   };
 
   return { gameState, userSide, sendAction, potentialWin, winningSide };

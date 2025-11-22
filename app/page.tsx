@@ -6,7 +6,7 @@ import { GameControls } from '@/components/GameControls';
 import { TransactionFeed } from '@/components/TransactionFeed';
 import { GameRules } from '@/components/GameRules';
 import { useGameEngine } from '@/lib/game-engine';
-import { Activity, Zap, Clock, Coins, Trophy, TrendingUp, AlertTriangle, Users, DollarSign, Wallet as WalletIcon, MonitorPlay, Globe, Info, HelpCircle } from 'lucide-react';
+import { Activity, Zap, Clock, Coins, Trophy, TrendingUp, AlertTriangle, Users, DollarSign, Wallet as WalletIcon, MonitorPlay, Globe, Info, HelpCircle, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWallet } from '@solana/wallet-adapter-react';
 
@@ -17,6 +17,7 @@ export default function Home() {
   const [prevEarnings, setPrevEarnings] = useState(0);
   const [profitFlash, setProfitFlash] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [critFlash, setCritFlash] = useState(false); // Flash whole screen on Crit
 
   useEffect(() => {
     if (gameState.lifetimeEarnings > prevEarnings) {
@@ -27,17 +28,33 @@ export default function Home() {
     }
   }, [gameState.lifetimeEarnings]);
 
+  const handleAction = async (side: 'bull' | 'bear') => {
+      const result = await sendAction(side, 1);
+      if (result?.isCrit) {
+          setCritFlash(true);
+          setTimeout(() => setCritFlash(false), 300);
+      }
+  };
+
   const myCost = (gameState.myContribution * 0.01).toFixed(2);
   const isWinning = userSide === winningSide;
   const isRisk = userSide && !isWinning;
 
   const leadPercent = Math.abs((gameState.currentPrice - gameState.oraclePrice) / gameState.oraclePrice * 100).toFixed(2);
 
+  // Entropy UI Logic
+  const entropy = gameState.sonicEntropy;
+  const entropyColor = entropy > 80 ? "bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)]" : entropy < 20 ? "bg-orange-500" : "bg-blue-500";
+  const entropyLabel = entropy > 80 ? "CHAOS (3x CRIT)" : entropy < 20 ? "STAGNANT (0.5x)" : "STABLE (1.0x)";
+  const entropyText = entropy > 80 ? "text-purple-400 animate-pulse" : entropy < 20 ? "text-orange-400" : "text-blue-400";
+
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4 font-sans selection:bg-green-500/30 overflow-hidden relative">
       
-      {/* Auto-Popup Rules */}
       <GameRules />
+
+      {/* Crit Flash Effect */}
+      {critFlash && <div className="absolute inset-0 bg-purple-500/20 z-[100] pointer-events-none mix-blend-overlay" />}
 
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
@@ -45,32 +62,32 @@ export default function Home() {
       {/* Header */}
       <div className="w-full max-w-4xl flex items-end justify-between mb-6 z-10">
         <div>
-            <div className="flex items-center gap-2 mb-2">
-                <div className={cn(
-                    "px-2 py-1 rounded border text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors duration-500",
-                    connected 
-                        ? "bg-green-500/20 border-green-500/30 text-green-400" 
-                        : "bg-blue-500/20 border-blue-500/30 text-blue-400"
-                )}>
-                   <Globe className="w-3 h-3" /> {connected ? "Sonic Mainnet" : "Sonic Testnet"}
+            {/* Sonic Oracle Indicator */}
+            <div className="mb-3 flex items-center gap-3">
+                <div className="bg-neutral-900/80 border border-white/10 rounded-lg p-2 flex items-center gap-3 backdrop-blur-md">
+                    <div className="flex flex-col">
+                        <span className="text-[8px] uppercase tracking-widest font-bold text-gray-500 flex items-center gap-1">
+                            <Globe className="w-3 h-3" /> Sonic Oracle State
+                        </span>
+                        <div className={cn("text-sm font-black font-mono", entropyText)}>
+                            {entropyLabel}
+                        </div>
+                    </div>
+                    {/* Entropy Bar */}
+                    <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden">
+                        <div 
+                            className={cn("h-full transition-all duration-200 ease-linear", entropyColor)}
+                            style={{ width: `${entropy}%` }}
+                        />
+                    </div>
+                    <div className="text-xs font-mono text-gray-400 w-8 text-right">{entropy.toFixed(0)}</div>
                 </div>
-                
-                {connected ? (
-                     <div className="px-2 py-1 rounded bg-green-500/20 border border-green-500/30 text-[10px] font-bold text-green-400 uppercase tracking-wider flex items-center gap-1 animate-pulse">
-                        <Users className="w-3 h-3" /> {gameState.activePlayers} Players
-                    </div>
-                ) : (
-                    <div className="px-2 py-1 rounded bg-yellow-500/20 border border-yellow-500/30 text-[10px] font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-1">
-                        <MonitorPlay className="w-3 h-3" /> Spectator Mode
-                    </div>
-                )}
             </div>
             
             <div className="flex items-center gap-3 relative">
                 <h1 className="text-4xl font-black tracking-tighter italic uppercase">
                     Candle<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Wars</span>
                 </h1>
-                {/* Rules Toggle (Keep manual toggle too) */}
                 <button 
                     className="text-gray-500 hover:text-white transition-colors"
                     onMouseEnter={() => setShowRules(true)}
@@ -78,25 +95,26 @@ export default function Home() {
                 >
                     <HelpCircle className="w-5 h-5" />
                 </button>
-
+                
+                {/* Rules Hover */}
                 {showRules && (
-                    <div className="absolute left-full top-0 ml-4 w-64 bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-2xl z-50 text-xs pointer-events-none animate-in fade-in slide-in-from-left-2">
-                        <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-1">Mission Protocol</h4>
+                    <div className="absolute left-full top-0 ml-4 w-72 bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-2xl z-50 text-xs pointer-events-none animate-in fade-in slide-in-from-left-2">
+                        <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-1">Sonic Oracle Protocol</h4>
                         <ul className="space-y-2 text-gray-300">
                             <li className="flex gap-2">
-                                <Clock className="w-3 h-3 mt-0.5 text-gray-500" />
-                                <span><strong>15s Rounds.</strong> Early birds get 5x Power. Winner takes all.</span>
+                                <Globe className="w-3 h-3 mt-0.5 text-purple-400" />
+                                <span><strong>Read-Only Oracle.</strong> Sonic generates high-frequency randomness.</span>
                             </li>
                             <li className="flex gap-2">
-                                <TrendingUp className="w-3 h-3 mt-0.5 text-green-400" />
-                                <span><strong>Bulls Win:</strong> If Price {'>'} Oracle at 0s.</span>
+                                <Zap className="w-3 h-3 mt-0.5 text-yellow-400" />
+                                <span><strong>Entropy > 80:</strong> CRITICAL HIT! 3x Power & Impact.</span>
                             </li>
                             <li className="flex gap-2">
-                                <TrendingUp className="w-3 h-3 mt-0.5 text-red-400 rotate-180" />
-                                <span><strong>Bears Win:</strong> If Price {'<'} Oracle at 0s.</span>
+                                <AlertTriangle className="w-3 h-3 mt-0.5 text-orange-400" />
+                                <span><strong>Entropy {'<'} 20:</strong> Slippage. 0.5x Power.</span>
                             </li>
                             <li className="mt-2 pt-2 border-t border-white/10 text-[10px] text-gray-500">
-                                Powered by <strong>HyperGrid</strong>. Sign on Solana, Settle on Sonic.
+                                Transactions signed on Solana. Outcomes determined by Sonic State.
                             </li>
                         </ul>
                     </div>
@@ -114,7 +132,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Grid Layout */}
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 z-10">
         
         {/* LEFT: Game Card */}
@@ -151,7 +168,6 @@ export default function Home() {
                     </div>
                     
                     <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center relative overflow-hidden col-span-2">
-                        {isRisk && connected && <div className="absolute inset-0 bg-red-500/10 animate-pulse" />}
                         <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider z-10">
                             <DollarSign className="w-3 h-3" /> Pending Rewards
                         </div>
@@ -197,12 +213,12 @@ export default function Home() {
                     </div>
 
                     <GameControls 
-                        onPump={() => sendAction('bull', 1)}
-                        onDump={() => sendAction('bear', 1)}
+                        onPump={() => handleAction('bull')}
+                        onDump={() => handleAction('bear')}
                         bullPower={gameState.bullPower}
                         bearPower={gameState.bearPower}
                         userSide={userSide}
-                        currentMultiplier={gameState.currentMultiplier}
+                        currentMultiplier={1} 
                     />
                     
                     <div className="flex justify-between items-center mt-4 px-2">
@@ -212,7 +228,8 @@ export default function Home() {
                             )}
                         </div>
                         <div className="text-[10px] text-gray-600 font-mono opacity-50">
-                            Network: 12ms
+                            <Globe className="w-3 h-3 inline mr-1" />
+                            Syncing Sonic SVM...
                         </div>
                     </div>
                 </div>

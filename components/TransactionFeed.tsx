@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction } from '@/lib/game-engine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, ArrowDown, Zap, Pause, Users } from 'lucide-react';
+import { ArrowUp, ArrowDown, Zap, Pause, Users, Sparkles, AlertTriangle } from 'lucide-react';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -43,17 +43,15 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
   // Init mock users
   useEffect(() => {
       setMockUsers(generateMockUsers(15));
-      // Simulate active user changes
       const interval = setInterval(() => {
           setMockUsers(prev => {
               const next = [...prev];
-              // Randomly update power or swap a user
               const idx = Math.floor(Math.random() * next.length);
               next[idx] = {
                   ...next[idx],
                   power: next[idx].power + Math.floor(Math.random() * 500)
               };
-              return next.sort((a, b) => b.power - a.power); // Keep sorted by power
+              return next.sort((a, b) => b.power - a.power); 
           });
       }, 2000);
       return () => clearInterval(interval);
@@ -111,6 +109,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
                                 ${tx.user === 'You' 
                                     ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]' 
                                     : 'bg-neutral-900/60 border-white/5 hover:bg-neutral-800'}
+                                ${tx.isCrit ? 'border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : ''}
                             `}
                         >
                             <div className="flex items-center justify-between mb-2">
@@ -121,6 +120,17 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${tx.type === 'pump' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                         {tx.type}
                                     </span>
+                                    {/* CRIT BADGE */}
+                                    {tx.isCrit && (
+                                        <span className="text-[8px] bg-purple-500 text-white px-1 rounded font-bold animate-pulse flex items-center gap-1">
+                                            <Sparkles className="w-2 h-2" /> CRIT
+                                        </span>
+                                    )}
+                                    {tx.entropyValue < 20 && (
+                                        <span className="text-[8px] bg-orange-500/20 text-orange-500 px-1 rounded font-bold flex items-center gap-1">
+                                            <AlertTriangle className="w-2 h-2" /> SLIP
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="text-gray-600 text-[10px]">
                                     {tx.id}
@@ -130,7 +140,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
                             <div className="flex items-center justify-between bg-black/20 rounded-lg p-1.5">
                                 <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
                                     <SolanaLogo />
-                                    <span>Solana</span>
+                                    <span>Sign</span>
                                 </div>
                                 <div className="flex-1 flex justify-center">
                                     <div className="h-px w-full bg-gradient-to-r from-gray-800 via-gray-600 to-gray-800 relative">
@@ -143,7 +153,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[10px] text-orange-400 font-bold">
-                                    <span>Sonic SVM</span>
+                                    <span>Sonic Read</span>
                                     <Zap className="w-3 h-3 fill-orange-500" />
                                 </div>
                             </div>
