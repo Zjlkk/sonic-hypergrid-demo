@@ -17,7 +17,7 @@ export default function Home() {
   const [prevEarnings, setPrevEarnings] = useState(0);
   const [profitFlash, setProfitFlash] = useState(false);
   const [showRules, setShowRules] = useState(false);
-  const [critFlash, setCritFlash] = useState(false); // Flash whole screen on Crit
+  const [critFlash, setCritFlash] = useState(false); 
 
   useEffect(() => {
     if (gameState.lifetimeEarnings > prevEarnings) {
@@ -42,7 +42,6 @@ export default function Home() {
 
   const leadPercent = Math.abs((gameState.currentPrice - gameState.oraclePrice) / gameState.oraclePrice * 100).toFixed(2);
 
-  // Entropy UI Logic
   const entropy = gameState.sonicEntropy;
   const entropyColor = entropy > 80 ? "bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)]" : entropy < 20 ? "bg-orange-500" : "bg-blue-500";
   const entropyLabel = entropy > 80 ? "CHAOS (3x CRIT)" : entropy < 20 ? "STAGNANT (0.5x)" : "STABLE (1.0x)";
@@ -53,16 +52,13 @@ export default function Home() {
       
       <GameRules />
 
-      {/* Crit Flash Effect */}
       {critFlash && <div className="absolute inset-0 bg-purple-500/20 z-[100] pointer-events-none mix-blend-overlay" />}
 
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Header */}
       <div className="w-full max-w-4xl flex items-end justify-between mb-6 z-10">
         <div>
-            {/* Sonic Oracle Indicator */}
             <div className="mb-3 flex items-center gap-3">
                 <div className="bg-neutral-900/80 border border-white/10 rounded-lg p-2 flex items-center gap-3 backdrop-blur-md">
                     <div className="flex flex-col">
@@ -73,7 +69,6 @@ export default function Home() {
                             {entropyLabel}
                         </div>
                     </div>
-                    {/* Entropy Bar */}
                     <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden">
                         <div 
                             className={cn("h-full transition-all duration-200 ease-linear", entropyColor)}
@@ -96,7 +91,6 @@ export default function Home() {
                     <HelpCircle className="w-5 h-5" />
                 </button>
                 
-                {/* Rules Hover */}
                 {showRules && (
                     <div className="absolute left-full top-0 ml-4 w-72 bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-2xl z-50 text-xs pointer-events-none animate-in fade-in slide-in-from-left-2">
                         <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-1">Sonic Oracle Protocol</h4>
@@ -107,11 +101,11 @@ export default function Home() {
                             </li>
                             <li className="flex gap-2">
                                 <Zap className="w-3 h-3 mt-0.5 text-yellow-400" />
-                                <span><strong>Entropy > 80:</strong> CRITICAL HIT! 3x Power & Impact.</span>
+                                <span><strong>Entropy &gt; 80:</strong> CRITICAL HIT! 3x Power & Impact.</span>
                             </li>
                             <li className="flex gap-2">
                                 <AlertTriangle className="w-3 h-3 mt-0.5 text-orange-400" />
-                                <span><strong>Entropy {'<'} 20:</strong> Slippage. 0.5x Power.</span>
+                                <span><strong>Entropy &lt; 20:</strong> Slippage. 0.5x Power.</span>
                             </li>
                             <li className="mt-2 pt-2 border-t border-white/10 text-[10px] text-gray-500">
                                 Transactions signed on Solana. Outcomes determined by Sonic State.
@@ -133,8 +127,6 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 z-10">
-        
-        {/* LEFT: Game Card */}
         <div className={cn(
             "w-full rounded-3xl p-1 border shadow-2xl backdrop-blur-xl relative group transition-all duration-500",
             isRisk && connected ? "bg-red-900/20 border-red-500/50 shadow-red-900/20" : 
@@ -156,7 +148,6 @@ export default function Home() {
             )}
 
             <div className="relative bg-neutral-900/90 rounded-[22px] overflow-hidden">
-                {/* Stats Bar */}
                 <div className="grid grid-cols-4 gap-px bg-white/5 border-b border-white/5">
                     <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center">
                         <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider">
@@ -236,7 +227,6 @@ export default function Home() {
             </div>
         </div>
 
-        {/* RIGHT: Live Feed */}
         <div className="hidden lg:flex flex-col h-[600px]">
             <TransactionFeed 
                 transactions={gameState.recentTx} 
