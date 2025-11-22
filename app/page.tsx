@@ -1,6 +1,6 @@
-/* Forced Update */
 "use client";
 
+// Force Rebuild: Timestamp 2025-11-22 22:45
 import React, { useEffect, useState } from 'react';
 import { GameControls } from '@/components/GameControls';
 import { TransactionFeed } from '@/components/TransactionFeed';
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
-export default function Home() {
+export default function SonicMinerPage() {
   const { gameState, dig } = useGameEngine();
   const { connected, publicKey } = useWallet();
   const { connection } = useConnection();
