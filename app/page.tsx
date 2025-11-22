@@ -6,27 +6,40 @@ import { GameControls } from '@/components/GameControls';
 import { TransactionFeed } from '@/components/TransactionFeed';
 import { GameRules } from '@/components/GameRules';
 import { useGameEngine } from '@/lib/game-engine';
-import { Activity, Zap, Clock, Coins, Trophy, TrendingUp, AlertTriangle, Users, DollarSign, Wallet as WalletIcon, MonitorPlay, Globe, Info, HelpCircle, BarChart3 } from 'lucide-react';
+import { Activity, Zap, Clock, Trophy, TrendingUp, AlertTriangle, Users, DollarSign, Wallet as WalletIcon, MonitorPlay, Globe, HelpCircle, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 export default function Home() {
-  const { gameState, sendAction, potentialWin, winningSide, userSide } = useGameEngine();
-  const { connected } = useWallet();
+  const { gameState, sendAction, winningSide, userSide } = useGameEngine();
+  const { connected, publicKey } = useWallet();
+  const { connection } = useConnection();
 
-  const [prevEarnings, setPrevEarnings] = useState(0);
-  const [profitFlash, setProfitFlash] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [critFlash, setCritFlash] = useState(false); 
 
+  // Fetch Balance
   useEffect(() => {
-    if (gameState.lifetimeEarnings > prevEarnings) {
-        setProfitFlash(true);
-        const timer = setTimeout(() => setProfitFlash(false), 2000);
-        setPrevEarnings(gameState.lifetimeEarnings);
-        return () => clearTimeout(timer);
-    }
-  }, [gameState.lifetimeEarnings]);
+      if (!publicKey) {
+          setBalance(null);
+          return;
+      }
+      const getBalance = async () => {
+          try {
+              const bal = await connection.getBalance(publicKey);
+              setBalance(bal / LAMPORTS_PER_SOL);
+          } catch (e) {
+              console.error("Failed to fetch balance", e);
+          }
+      };
+      getBalance();
+      // Poll balance every 10s
+      const interval = setInterval(getBalance, 10000);
+      return () => clearInterval(interval);
+  }, [publicKey, connection]);
 
   const handleAction = async (side: 'bull' | 'bear') => {
       const result = await sendAction(side, 1);
@@ -36,15 +49,14 @@ export default function Home() {
       }
   };
 
-  const myCost = (gameState.myContribution * 0.01).toFixed(2);
   const isWinning = userSide === winningSide;
   const isRisk = userSide && !isWinning;
-
   const leadPercent = Math.abs((gameState.currentPrice - gameState.oraclePrice) / gameState.oraclePrice * 100).toFixed(2);
 
   const entropy = gameState.sonicEntropy;
   const entropyColor = entropy > 80 ? "bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)]" : entropy < 20 ? "bg-orange-500" : "bg-blue-500";
-  const entropyLabel = entropy > 80 ? "CHAOS (3x CRIT)" : entropy < 20 ? "STAGNANT (0.5x)" : "STABLE (1.0x)";
+  // Clearer labels
+  const entropyLabel = entropy > 80 ? "CHAOS MODE (3x CRIT)" : entropy < 20 ? "STAGNANT (0.5x)" : "STABLE (1.0x)";
   const entropyText = entropy > 80 ? "text-purple-400 animate-pulse" : entropy < 20 ? "text-orange-400" : "text-blue-400";
 
   return (
@@ -57,29 +69,33 @@ export default function Home() {
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="w-full max-w-4xl flex items-end justify-between mb-6 z-10">
-        <div>
-            <div className="mb-3 flex items-center gap-3">
-                <div className="bg-neutral-900/80 border border-white/10 rounded-lg p-2 flex items-center gap-3 backdrop-blur-md">
-                    <div className="flex flex-col">
-                        <span className="text-[8px] uppercase tracking-widest font-bold text-gray-500 flex items-center gap-1">
-                            <Globe className="w-3 h-3" /> Sonic Oracle State
+      {/* Header */}
+      <div className="w-full max-w-4xl flex items-start justify-between mb-6 z-10">
+        <div className="flex flex-col gap-4">
+            {/* Sonic Oracle Indicator (Redesigned) */}
+            <div className="flex items-center gap-3">
+                <div className="bg-neutral-900/80 border border-white/10 rounded-lg p-3 flex flex-col gap-2 backdrop-blur-md min-w-[280px]">
+                    <div className="flex justify-between items-center">
+                         <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 flex items-center gap-1">
+                            <Globe className="w-3 h-3" /> Sonic Network Entropy
                         </span>
-                        <div className={cn("text-sm font-black font-mono", entropyText)}>
-                            {entropyLabel}
-                        </div>
+                        <span className="text-[10px] font-mono text-gray-500">{entropy.toFixed(0)}%</span>
                     </div>
-                    <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden">
+                    
+                    <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                         <div 
                             className={cn("h-full transition-all duration-200 ease-linear", entropyColor)}
                             style={{ width: `${entropy}%` }}
                         />
                     </div>
-                    <div className="text-xs font-mono text-gray-400 w-8 text-right">{entropy.toFixed(0)}</div>
+                    
+                    <div className={cn("text-xs font-black font-mono text-center tracking-wider", entropyText)}>
+                        {entropyLabel}
+                    </div>
                 </div>
             </div>
             
-            <div className="flex items-center gap-3 relative">
+            <div className="flex items-center gap-3 relative mt-2">
                 <h1 className="text-4xl font-black tracking-tighter italic uppercase">
                     Candle<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Wars</span>
                 </h1>
@@ -97,18 +113,18 @@ export default function Home() {
                         <ul className="space-y-2 text-gray-300">
                             <li className="flex gap-2">
                                 <Globe className="w-3 h-3 mt-0.5 text-purple-400" />
-                                <span><strong>Read-Only Oracle.</strong> Sonic generates high-frequency randomness.</span>
+                                <span><strong>High-Freq Oracle.</strong> Randomness generated on Sonic SVM.</span>
                             </li>
                             <li className="flex gap-2">
                                 <Zap className="w-3 h-3 mt-0.5 text-yellow-400" />
-                                <span><strong>Entropy &gt; 80:</strong> CRITICAL HIT! 3x Power & Impact.</span>
+                                <span><strong>Entropy &gt; 80:</strong> CRITICAL HIT! 3x Points & Force.</span>
                             </li>
                             <li className="flex gap-2">
                                 <AlertTriangle className="w-3 h-3 mt-0.5 text-orange-400" />
-                                <span><strong>Entropy &lt; 20:</strong> Slippage. 0.5x Power.</span>
+                                <span><strong>Entropy &lt; 20:</strong> Slippage. 0.5x Points.</span>
                             </li>
                             <li className="mt-2 pt-2 border-t border-white/10 text-[10px] text-gray-500">
-                                Transactions signed on Solana. Outcomes determined by Sonic State.
+                                No SOL spent. Just sign & speed.
                             </li>
                         </ul>
                     </div>
@@ -116,12 +132,28 @@ export default function Home() {
             </div>
         </div>
         
-        <div className="flex flex-col items-end">
-            <span className="text-xs text-yellow-500/80 uppercase font-bold flex items-center gap-1 mb-1">
-                <Trophy className="w-3 h-3" /> Round Jackpot
-            </span>
-            <div className="text-3xl font-mono font-black text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] flex items-baseline gap-1">
-                {gameState.jackpot.toFixed(2)} <span className="text-sm text-yellow-600 font-bold">SOL</span>
+        <div className="flex flex-col items-end gap-3">
+            {/* Wallet Info */}
+            {connected && (
+                <div className="bg-neutral-900/60 border border-white/10 rounded-full px-4 py-1.5 flex items-center gap-3 backdrop-blur-md text-xs font-mono">
+                    <div className="flex items-center gap-2 text-gray-400">
+                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                         {publicKey?.toString().slice(0, 4)}...{publicKey?.toString().slice(-4)}
+                    </div>
+                    <div className="w-px h-3 bg-white/20" />
+                    <div className="font-bold text-white">
+                        {balance !== null ? balance.toFixed(3) : "..."} SOL
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col items-end">
+                <span className="text-xs text-yellow-500/80 uppercase font-bold flex items-center gap-1 mb-1">
+                    <Activity className="w-3 h-3" /> Total Volume
+                </span>
+                <div className="text-3xl font-mono font-black text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] flex items-baseline gap-1">
+                    {gameState.totalVolume.toLocaleString()} <span className="text-sm text-yellow-600 font-bold">PTS</span>
+                </div>
             </div>
         </div>
       </div>
@@ -148,7 +180,7 @@ export default function Home() {
             )}
 
             <div className="relative bg-neutral-900/90 rounded-[22px] overflow-hidden">
-                <div className="grid grid-cols-4 gap-px bg-white/5 border-b border-white/5">
+                <div className="grid grid-cols-3 gap-px bg-white/5 border-b border-white/5">
                     <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center">
                         <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider">
                             <Clock className="w-3 h-3" /> Time
@@ -158,23 +190,13 @@ export default function Home() {
                         </div>
                     </div>
                     
+                    {/* Changed Pending Rewards to Score */}
                     <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center relative overflow-hidden col-span-2">
                         <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider z-10">
-                            <DollarSign className="w-3 h-3" /> Pending Rewards
+                            <Trophy className="w-3 h-3" /> Your Session Score
                         </div>
-                        <div className={cn("text-2xl font-mono font-black z-10 tracking-tight", isRisk && connected ? "text-gray-500" : "text-green-400")}>
-                            {connected ? potentialWin : "---"} <span className="text-xs font-bold opacity-70">SOL</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-neutral-900/50 p-3 flex flex-col items-center justify-center relative overflow-hidden">
-                         {profitFlash && <div className="absolute inset-0 bg-yellow-500/20 animate-pulse" />}
-
-                        <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-bold uppercase mb-1 tracking-wider z-10">
-                            <WalletIcon className="w-3 h-3" /> Profit
-                        </div>
-                        <div className={cn("text-lg font-mono font-bold z-10", profitFlash ? "text-yellow-400 scale-110 transition-transform" : "text-white")}>
-                            {connected ? gameState.lifetimeEarnings.toFixed(2) : "0.00"}
+                        <div className={cn("text-2xl font-mono font-black z-10 tracking-tight text-blue-400")}>
+                            {connected ? gameState.myScore.toFixed(0) : "---"} <span className="text-xs font-bold opacity-70">PTS</span>
                         </div>
                     </div>
                 </div>
@@ -213,10 +235,8 @@ export default function Home() {
                     />
                     
                     <div className="flex justify-between items-center mt-4 px-2">
-                        <div className="text-[10px] text-gray-500 font-mono">
-                            {connected && (
-                                <>Round Cost: <span className="text-white font-bold">{myCost} SOL</span></>
-                            )}
+                         <div className="text-[10px] text-gray-500 font-mono">
+                             {/* Empty left side now that cost is gone */}
                         </div>
                         <div className="text-[10px] text-gray-600 font-mono opacity-50">
                             <Globe className="w-3 h-3 inline mr-1" />

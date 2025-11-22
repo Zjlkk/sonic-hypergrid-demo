@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction } from '@/lib/game-engine';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, ArrowDown, Zap, Pause, Users, Sparkles, AlertTriangle } from 'lucide-react';
+import { Zap, Pause, Users, Sparkles, AlertTriangle } from 'lucide-react';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -18,7 +18,6 @@ const SolanaLogo = () => (
   </svg>
 );
 
-// Mock user list generator
 const generateMockUsers = (count: number) => {
     return Array.from({ length: count }).map((_, i) => ({
         id: i,
@@ -40,7 +39,6 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
     }
   }, [transactions, isHovering]);
 
-  // Init mock users
   useEffect(() => {
       setMockUsers(generateMockUsers(15));
       const interval = setInterval(() => {
@@ -89,9 +87,14 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
         </div>
       </div>
       
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto no-scrollbar relative mask-linear-fade">
-        
+      {/* Content Area - Hidden Scrollbar style added */}
+      <div className="flex-1 overflow-y-auto relative mask-linear-fade" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style jsx>{`
+            div::-webkit-scrollbar {
+                display: none;
+            }
+        `}</style>
+
         {/* FEED VIEW */}
         {activeTab === 'feed' && (
             <div className="flex flex-col gap-2 pb-4">
@@ -157,12 +160,6 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
                                     <Zap className="w-3 h-3 fill-orange-500" />
                                 </div>
                             </div>
-                            
-                            <div className="absolute -right-1 -top-1">
-                                <div className="bg-green-500 text-black text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1">
-                                    ✓ <span className="opacity-80">{tx.latency}ms</span>
-                                </div>
-                            </div>
                         </motion.div>
                     ))}
                 </AnimatePresence>
@@ -179,7 +176,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
                             <span className="font-mono text-gray-300 text-xs">{user.address}</span>
                         </div>
                         <div className="text-xs font-mono font-bold text-gray-500">
-                            {user.power} <span className="text-[10px] font-normal">PWR</span>
+                            {user.power} <span className="text-[10px] font-normal">PTS</span>
                         </div>
                     </div>
                 ))}
