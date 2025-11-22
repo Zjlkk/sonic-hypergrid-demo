@@ -19,10 +19,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions }
 
   return (
     <div className="flex flex-col h-full w-full relative">
-      {/* Added utility classes for hiding scrollbar directly */}
-      <div 
-        className="flex-1 overflow-y-auto relative mask-linear-fade [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-      >
+      <div className="flex-1 overflow-y-auto relative mask-linear-fade">
         <div className="flex flex-col gap-2 pb-4">
             <AnimatePresence initial={false} mode='popLayout'>
                 {displayTxs.map((tx) => (
@@ -65,7 +62,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions }
                 ))}
             </AnimatePresence>
         </div>
+      </div>
     </div>
-  </div>
   );
 };
